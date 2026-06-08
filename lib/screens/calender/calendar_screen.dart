@@ -120,6 +120,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               child: TableCalendar(
+                locale: l.currentLanguageCode,
                 firstDay: DateTime(2020),
                 lastDay: DateTime.now().add(const Duration(days: 365)),
                 focusedDay: _focusedDay,

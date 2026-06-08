@@ -18,12 +18,12 @@ class AppColors {
   static const Color normalGreen = Color(0xFFC8E6C9);
 
   // Dark Theme Colors
-  static const Color darkBackground = Color(0xFF1E1E2C);
-  static const Color darkSurface = Color(0xFF2D2D3D);
+  static const Color darkBackground = Color(0xFF3A0519);
+  static const Color darkSurface = Color(0xFF3A0519);
   static const Color darkTextColor = Color(0xFFE0E0E0);
   static const Color darkMediumGrey = Color(0xFF888888);
-  static const Color darkPrimaryPink = Color(0xFFD48197);
-  static const Color darkSoftPink = Color(0xFF5A3A45);
+  static const Color darkPrimaryPink = Color(0xFF670D2F);
+  static const Color darkSoftPink = Color(0xFF670D2F);
 
   // Gradient
   static const LinearGradient primaryGradient = LinearGradient(

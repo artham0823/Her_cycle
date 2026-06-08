@@ -15,6 +15,9 @@ import '../models/diary_model.dart';
 class DatabaseService {
   // Web storage (so Chrome can login)
   static const String _webUsersKey = 'web_users_v1';
+  static const String _webPeriodsKey = 'web_periods_v1';
+  static const String _webMoodsKey = 'web_moods_v1';
+  static const String _webDiariesKey = 'web_diaries_v1';
   static const String _webSeedEmail = 'kiki@example.com';
   static const String _webSeedPassword = 'kikiexample';
   static const String _webSeedUid = 'default_kiki';
@@ -35,6 +38,8 @@ class DatabaseService {
     _db = await _initDB();
     return _db!;
   }
+
+  // --- Web Data Helpers ---
 
   Future<Map<String, dynamic>> _loadWebData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -62,6 +67,21 @@ class DatabaseService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_webUsersKey, jsonEncode(data));
   }
+
+  Future<List<Map<String, dynamic>>> _loadWebList(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List;
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> _saveWebList(String key, List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, jsonEncode(list));
+  }
+
+  // --- SQLite Init ---
 
   Future<Database> _initDB() async {
     String path = join(await getDatabasesPath(), 'hercycle.db');
@@ -275,6 +295,19 @@ class DatabaseService {
           .where((u) => (u['uid'] as String?) != uid)
           .toList();
       await _saveWebData({'users': filtered});
+
+      // Also clean up periods, moods, diaries for this user
+      var periods = await _loadWebList(_webPeriodsKey);
+      periods = periods.where((p) => p['userId'] != uid).toList();
+      await _saveWebList(_webPeriodsKey, periods);
+
+      var moods = await _loadWebList(_webMoodsKey);
+      moods = moods.where((m) => m['userId'] != uid).toList();
+      await _saveWebList(_webMoodsKey, moods);
+
+      var diaries = await _loadWebList(_webDiariesKey);
+      diaries = diaries.where((d) => d['userId'] != uid).toList();
+      await _saveWebList(_webDiariesKey, diaries);
       return;
     }
 
@@ -289,6 +322,17 @@ class DatabaseService {
   final _periodsController = StreamController<List<PeriodModel>>.broadcast();
 
   Future<void> addPeriod(PeriodModel period) async {
+    if (kIsWeb) {
+      final id = DateTime.now().millisecondsSinceEpoch.toString();
+      final list = await _loadWebList(_webPeriodsKey);
+      final data = period.toMap();
+      data['id'] = id;
+      list.add(data);
+      await _saveWebList(_webPeriodsKey, list);
+      _refreshPeriods(period.userId);
+      return;
+    }
+
     final db = await database;
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final data = period.toMap();
@@ -298,6 +342,14 @@ class DatabaseService {
   }
 
   Future<void> deletePeriod(String userId, String periodId) async {
+    if (kIsWeb) {
+      var list = await _loadWebList(_webPeriodsKey);
+      list = list.where((p) => p['id'] != periodId).toList();
+      await _saveWebList(_webPeriodsKey, list);
+      _refreshPeriods(userId);
+      return;
+    }
+
     final db = await database;
     await db.delete('periods', where: 'id = ?', whereArgs: [periodId]);
     _refreshPeriods(userId);
@@ -309,6 +361,17 @@ class DatabaseService {
   }
 
   Future<List<PeriodModel>> getPeriodsOnce(String userId) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webPeriodsKey);
+      final filtered = list.where((p) => p['userId'] == userId).toList();
+      filtered.sort((a, b) {
+        final dateA = DateTime.parse(a['startDate'] as String);
+        final dateB = DateTime.parse(b['startDate'] as String);
+        return dateB.compareTo(dateA);
+      });
+      return filtered.map((m) => PeriodModel.fromMap(m, m['id'] as String)).toList();
+    }
+
     final db = await database;
     final res = await db.query(
       'periods',
@@ -328,6 +391,35 @@ class DatabaseService {
   final _moodsController = StreamController<List<MoodModel>>.broadcast();
 
   Future<void> addMood(MoodModel mood) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webMoodsKey);
+      final dateStart = DateTime(mood.date.year, mood.date.month, mood.date.day);
+      final dateEnd = dateStart.add(const Duration(days: 1));
+
+      // Check if mood already exists for this date
+      final existingIndex = list.indexWhere((m) {
+        if (m['userId'] != mood.userId) return false;
+        final mDate = DateTime.parse(m['date'] as String);
+        return !mDate.isBefore(dateStart) && mDate.isBefore(dateEnd);
+      });
+
+      if (existingIndex != -1) {
+        // Update existing
+        list[existingIndex]['mood'] = mood.mood.name;
+        list[existingIndex]['level'] = mood.level;
+      } else {
+        // Add new
+        final id = DateTime.now().millisecondsSinceEpoch.toString();
+        final data = mood.toMap();
+        data['id'] = id;
+        list.add(data);
+      }
+
+      await _saveWebList(_webMoodsKey, list);
+      _refreshMoods(mood.userId);
+      return;
+    }
+
     final db = await database;
     final dateStart = DateTime(
       mood.date.year,
@@ -368,6 +460,17 @@ class DatabaseService {
   }
 
   Future<List<MoodModel>> getMoodsOnce(String userId) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webMoodsKey);
+      final filtered = list.where((m) => m['userId'] == userId).toList();
+      filtered.sort((a, b) {
+        final dateA = DateTime.parse(a['date'] as String);
+        final dateB = DateTime.parse(b['date'] as String);
+        return dateB.compareTo(dateA);
+      });
+      return filtered.map((m) => MoodModel.fromMap(m, m['id'] as String)).toList();
+    }
+
     final db = await database;
     final res = await db.query(
       'moods',
@@ -379,6 +482,23 @@ class DatabaseService {
   }
 
   Future<MoodModel?> getMoodForDate(String userId, DateTime date) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webMoodsKey);
+      final dateStart = DateTime(date.year, date.month, date.day);
+      final dateEnd = dateStart.add(const Duration(days: 1));
+
+      final matching = list.where((m) {
+        if (m['userId'] != userId) return false;
+        final mDate = DateTime.parse(m['date'] as String);
+        return !mDate.isBefore(dateStart) && mDate.isBefore(dateEnd);
+      }).toList();
+
+      if (matching.isNotEmpty) {
+        return MoodModel.fromMap(matching.first, matching.first['id'] as String);
+      }
+      return null;
+    }
+
     final db = await database;
     final dateStart = DateTime(
       date.year,
@@ -411,6 +531,17 @@ class DatabaseService {
   final _diariesController = StreamController<List<DiaryModel>>.broadcast();
 
   Future<void> addDiary(DiaryModel diary) async {
+    if (kIsWeb) {
+      final id = DateTime.now().millisecondsSinceEpoch.toString();
+      final list = await _loadWebList(_webDiariesKey);
+      final data = diary.toMap();
+      data['id'] = id;
+      list.add(data);
+      await _saveWebList(_webDiariesKey, list);
+      _refreshDiaries(diary.userId);
+      return;
+    }
+
     final db = await database;
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final data = diary.toMap();
@@ -424,6 +555,17 @@ class DatabaseService {
     String diaryId,
     String content,
   ) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webDiariesKey);
+      final index = list.indexWhere((d) => d['id'] == diaryId && d['userId'] == userId);
+      if (index != -1) {
+        list[index]['content'] = content;
+        await _saveWebList(_webDiariesKey, list);
+        _refreshDiaries(userId);
+      }
+      return;
+    }
+
     final db = await database;
     await db.update(
       'diaries',
@@ -435,6 +577,14 @@ class DatabaseService {
   }
 
   Future<void> deleteDiary(String userId, String diaryId) async {
+    if (kIsWeb) {
+      var list = await _loadWebList(_webDiariesKey);
+      list = list.where((d) => d['id'] != diaryId).toList();
+      await _saveWebList(_webDiariesKey, list);
+      _refreshDiaries(userId);
+      return;
+    }
+
     final db = await database;
     await db.delete('diaries', where: 'id = ?', whereArgs: [diaryId]);
     _refreshDiaries(userId);
@@ -446,6 +596,17 @@ class DatabaseService {
   }
 
   Future<List<DiaryModel>> getDiariesOnce(String userId) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webDiariesKey);
+      final filtered = list.where((d) => d['userId'] == userId).toList();
+      filtered.sort((a, b) {
+        final dateA = DateTime.parse(a['date'] as String);
+        final dateB = DateTime.parse(b['date'] as String);
+        return dateB.compareTo(dateA);
+      });
+      return filtered.map((m) => DiaryModel.fromMap(m, m['id'] as String)).toList();
+    }
+
     final db = await database;
     final res = await db.query(
       'diaries',
@@ -457,6 +618,23 @@ class DatabaseService {
   }
 
   Future<DiaryModel?> getDiaryForDate(String userId, DateTime date) async {
+    if (kIsWeb) {
+      final list = await _loadWebList(_webDiariesKey);
+      final dateStart = DateTime(date.year, date.month, date.day);
+      final dateEnd = dateStart.add(const Duration(days: 1));
+
+      final matching = list.where((d) {
+        if (d['userId'] != userId) return false;
+        final dDate = DateTime.parse(d['date'] as String);
+        return !dDate.isBefore(dateStart) && dDate.isBefore(dateEnd);
+      }).toList();
+
+      if (matching.isNotEmpty) {
+        return DiaryModel.fromMap(matching.first, matching.first['id'] as String);
+      }
+      return null;
+    }
+
     final db = await database;
     final dateStart = DateTime(
       date.year,

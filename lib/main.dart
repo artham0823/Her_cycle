@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:provider/provider.dart';
 
@@ -24,25 +23,30 @@ import 'screens/main_shell.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/splash_screen.dart';
-import 'services/notification_service.dart';
+import 'services/notification_service_web.dart'
+    if (dart.library.io) 'services/notification_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// Conditional import: uses web stub on web, native implementation on desktop/mobile
+import 'services/platform_helper_web.dart'
+    if (dart.library.io) 'services/platform_helper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting(); // Initialize locale data for intl
 
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+  // Initialize sqflite FFI for desktop platforms (no-op on web)
+  initDesktopDatabase();
+
+  // Notifications only work on mobile/desktop, not web
+  if (!kIsWeb) {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    await notificationService.requestPermissions();
+    await notificationService.scheduleMoodReminder();
   }
-
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  await notificationService.requestPermissions();
-  await notificationService.scheduleMoodReminder();
 
   runApp(
     MultiProvider(
@@ -74,7 +78,12 @@ class HerCycleApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
       locale: languageProvider.locale,
-      localizationsDelegates: [AppLocalizations.delegate],
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: const [Locale('en'), Locale('id')],
       initialRoute: '/',
       routes: {

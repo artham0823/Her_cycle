@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:local_auth/local_auth.dart';
+import '../services/biometric_service_web.dart'
+    if (dart.library.io) '../services/biometric_service.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
@@ -16,7 +18,7 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen> {
-  final LocalAuthentication auth = LocalAuthentication();
+  final BiometricService auth = BiometricService();
   bool _isAuthenticated = false;
   bool _isChecking = true;
 
@@ -28,7 +30,9 @@ class _LockScreenState extends State<LockScreen> {
 
   Future<void> _checkAuth() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (!authProvider.isPrivacyLockEnabled) {
+
+    // On web, skip biometric auth entirely (local_auth not supported on web)
+    if (kIsWeb || !authProvider.isPrivacyLockEnabled) {
       if (mounted) {
         setState(() {
           _isAuthenticated = true;
@@ -41,33 +45,13 @@ class _LockScreenState extends State<LockScreen> {
     final unlockReason = context.l10n.translate('unlock_reason');
 
     try {
-      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      final bool canAuthenticate =
-          canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+      final bool didAuthenticate = await auth.authenticate(unlockReason);
 
-      if (canAuthenticate) {
-        final bool didAuthenticate = await auth.authenticate(
-          localizedReason: unlockReason,
-          options: const AuthenticationOptions(
-            stickyAuth: true,
-            biometricOnly: false,
-          ),
-        );
-
-        if (mounted) {
-          setState(() {
-            _isAuthenticated = didAuthenticate;
-            _isChecking = false;
-          });
-        }
-      } else {
-        // Device doesn't support auth, fallback to unlocked
-        if (mounted) {
-          setState(() {
-            _isAuthenticated = true;
-            _isChecking = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = didAuthenticate;
+          _isChecking = false;
+        });
       }
     } catch (e, st) {
       debugPrint('LockScreen auth error: $e');
