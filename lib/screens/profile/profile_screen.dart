@@ -8,7 +8,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/period_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../providers/diary_provider.dart';
-import '../../providers/theme_provider.dart';
 import '../../widgets/avatar_selector.dart';
 import '../../widgets/cycle_card.dart';
 
@@ -23,7 +22,6 @@ class ProfileScreen extends StatelessWidget {
     final moods = Provider.of<MoodProvider>(context);
     final diaries = Provider.of<DiaryProvider>(context);
     final langProvider = Provider.of<LanguageProvider>(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
 
     final user = auth.user;
     final name = user?.name ?? 'User';
@@ -236,22 +234,7 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const Divider(height: 32),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeTrackColor: AppColors.primaryPink,
-                    title: Text('Dark Mode', style: GoogleFonts.poppins(fontSize: 14)),
-                    secondary: const Icon(Icons.dark_mode_rounded, color: AppColors.primaryPink),
-                    value: themeProvider.isDarkMode,
-                    onChanged: (value) => themeProvider.toggleTheme(),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeTrackColor: AppColors.primaryPink,
-                    title: Text(l.translate('privacy_lock'), style: GoogleFonts.poppins(fontSize: 14)),
-                    secondary: const Icon(Icons.lock_rounded, color: AppColors.primaryPink),
-                    value: auth.isPrivacyLockEnabled,
-                    onChanged: (value) => auth.togglePrivacyLock(value),
-                  ),
+
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.edit_rounded, color: AppColors.primaryPink),

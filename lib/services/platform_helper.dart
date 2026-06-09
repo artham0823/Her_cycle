@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Initialize sqflite FFI for desktop platforms.

@@ -26,7 +26,7 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
   }
 
   Future<void> requestPermissions() async {
@@ -38,11 +38,11 @@ class NotificationService {
 
   Future<void> scheduleMoodReminder() async {
     await _plugin.zonedSchedule(
-      AppConstants.moodReminderId,
-      'HerCycle 💖',
-      "Don't forget to log your mood today 💖",
-      _nextInstanceOfTime(20, 0), // 8 PM daily
-      const NotificationDetails(
+      id: AppConstants.moodReminderId,
+      title: 'HerCycle 💖',
+      body: "Don't forget to log your mood today 💖",
+      scheduledDate: _nextInstanceOfTime(20, 0), // 8 PM daily
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'mood_reminder',
           'Mood Reminders',
@@ -63,11 +63,11 @@ class NotificationService {
     if (reminderDate.isBefore(DateTime.now())) return;
 
     await _plugin.zonedSchedule(
-      AppConstants.periodReminderId,
-      'HerCycle 🌸',
-      'Your predicted period is approaching.',
-      tz.TZDateTime.from(reminderDate, tz.local),
-      const NotificationDetails(
+      id: AppConstants.periodReminderId,
+      title: 'HerCycle 🌸',
+      body: 'Your predicted period is approaching.',
+      scheduledDate: tz.TZDateTime.from(reminderDate, tz.local),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'period_reminder',
           'Period Reminders',
@@ -87,7 +87,7 @@ class NotificationService {
   }
 
   Future<void> cancelNotification(int id) async {
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {

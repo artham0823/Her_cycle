@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -11,31 +10,16 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _user;
   bool _isLoading = false;
   String? _error;
-  bool _isPrivacyLockEnabled = false;
+
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _authService.currentUser != null;
   String? get currentUserId => _authService.currentUser?.uid;
-  bool get isPrivacyLockEnabled => _isPrivacyLockEnabled;
 
-  AuthProvider() {
-    _loadPrivacyLock();
-  }
 
-  Future<void> _loadPrivacyLock() async {
-    final prefs = await SharedPreferences.getInstance();
-    _isPrivacyLockEnabled = prefs.getBool('privacy_lock') ?? false;
-    notifyListeners();
-  }
-
-  Future<void> togglePrivacyLock(bool value) async {
-    _isPrivacyLockEnabled = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('privacy_lock', value);
-    notifyListeners();
-  }
+  AuthProvider();
 
   Stream<UserModel?> get authStateChanges => _authService.authStateChanges;
 

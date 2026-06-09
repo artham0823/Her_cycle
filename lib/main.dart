@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:provider/provider.dart';
@@ -11,22 +10,17 @@ import 'providers/auth_provider.dart';
 import 'providers/diary_provider.dart';
 import 'providers/mood_provider.dart';
 import 'providers/period_provider.dart';
-import 'providers/theme_provider.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/lock_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/home/home_screen.dart';
 import 'screens/insights/insights_screen.dart';
 import 'screens/main_shell.dart';
 import 'screens/profile/edit_profile_screen.dart';
-import 'screens/profile/profile_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service_web.dart'
     if (dart.library.io) 'services/notification_service.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 // Conditional import: uses web stub on web, native implementation on desktop/mobile
@@ -51,7 +45,6 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PeriodProvider()),
@@ -69,14 +62,11 @@ class HerCycleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
       title: 'HerCycle',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
       locale: languageProvider.locale,
       localizationsDelegates: [
         AppLocalizations.delegate,
@@ -92,7 +82,7 @@ class HerCycleApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
-        '/main': (context) => LockScreen(child: const MainShell()),
+        '/main': (context) => const MainShell(),
         '/edit-profile': (context) => const EditProfileScreen(),
         '/insights': (context) => const InsightsScreen(),
       },
